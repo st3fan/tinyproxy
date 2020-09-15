@@ -1520,7 +1520,7 @@ static void handle_connection_failure(struct conn_s *connptr, int got_headers)
  * tinyproxy code, which was confusing, redundant. Hail progress.
  * 	- rjkaes
  */
-void handle_connection (int fd, union sockaddr_union* addr)
+void handle_connection (int fd, int index, union sockaddr_union* addr)
 {
 
 #define HC_FAIL() \
@@ -1533,6 +1533,7 @@ void handle_connection (int fd, union sockaddr_union* addr)
         struct request_s *request = NULL;
         struct timeval tv;
         hashmap_t hashofheaders = NULL;
+        char *outgoing_ipaddr = NULL;
 
         char sock_ipaddr[IP_LENGTH];
         char peer_ipaddr[IP_LENGTH];
@@ -1547,8 +1548,16 @@ void handle_connection (int fd, union sockaddr_union* addr)
                      "Connect (file descriptor %d): %s",
                      fd, peer_ipaddr, sock_ipaddr);
 
-        connptr = initialize_conn (fd, peer_ipaddr,
-                                   config->bindsame ? sock_ipaddr : NULL);
+	/* SMA THIS IS IT Take config->outgoing_addrs[index] */
+
+        if (config->outgoing_addrs != NULL) {
+            outgoing_ipaddr = vector_getentry(config->outgoing_addrs, index, NULL);
+            log_message(LOG_WARNING, "Outgoing IP is %s", outgoing_ipaddr);
+            connptr = initialize_conn (fd, peer_ipaddr, outgoing_ipaddr);
+        } else {
+            connptr = initialize_conn (fd, peer_ipaddr,
+                                       config->bindsame ? sock_ipaddr : NULL);
+        }
         if (!connptr) {
                 close (fd);
                 return;

@@ -138,6 +138,7 @@ static HANDLE_FUNC (handle_filterurls);
 #endif
 static HANDLE_FUNC (handle_group);
 static HANDLE_FUNC (handle_listen);
+static HANDLE_FUNC (handle_outgoing);
 static HANDLE_FUNC (handle_logfile);
 static HANDLE_FUNC (handle_loglevel);
 static HANDLE_FUNC (handle_maxclients);
@@ -226,6 +227,7 @@ struct {
         STDCONF ("group", ALNUM, handle_group),
         /* ip arguments */
         STDCONF ("listen", "(" IP "|" IPV6 ")", handle_listen),
+        STDCONF ("outgoing", "(" IP "|" IPV6 ")", handle_outgoing),
         STDCONF ("allow", "(" "(" IPMASK "|" IPV6MASK ")" "|" ALNUM ")",
                  handle_allow),
         STDCONF ("deny", "(" "(" IPMASK "|" IPV6MASK ")" "|" ALNUM ")",
@@ -293,6 +295,7 @@ static void free_config (struct config_s *conf)
         safefree (conf->user);
         safefree (conf->group);
         vector_delete(conf->listen_addrs);
+        vector_delete(conf->outgoing_addrs);
         vector_delete(conf->basicauth_list);
 #ifdef FILTER_ENABLE
         safefree (conf->filter);
@@ -799,6 +802,32 @@ static HANDLE_FUNC (handle_listen)
         vector_append (conf->listen_addrs, arg, strlen(arg) + 1);
 
         log_message(LOG_INFO, "Added address [%s] to listen addresses.", arg);
+
+        safefree (arg);
+        return 0;
+}
+
+static HANDLE_FUNC (handle_outgoing)
+{
+        char *arg = get_string_arg (line, &match[2]);
+
+        if (arg == NULL) {
+                return -1;
+        }
+
+        if (conf->outgoing_addrs == NULL) {
+               conf->outgoing_addrs = vector_create();
+               if (conf->outgoing_addrs == NULL) {
+                       log_message(LOG_WARNING, "Could not create a list "
+                                   "of outgoing addresses.");
+                       safefree(arg);
+                       return -1;
+               }
+        }
+
+        vector_append (conf->outgoing_addrs, arg, strlen(arg) + 1);
+
+        log_message(LOG_INFO, "Added address [%s] to outgoing addresses.", arg);
 
         safefree (arg);
         return 0;

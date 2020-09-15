@@ -40,6 +40,7 @@ static vector_t listen_fds;
 struct client {
         union sockaddr_union addr;
         int fd;
+        int index;
 };
 
 struct child {
@@ -51,7 +52,7 @@ struct child {
 static void* child_thread(void* data)
 {
 	struct child *c = data;
-	handle_connection (c->client.fd, &c->client.addr);
+	handle_connection (c->client.fd, c->client.index, &c->client.addr);
 	c->done = 1;
 	return NULL;
 }
@@ -172,6 +173,8 @@ void child_main_loop (void)
                  * Continue handling this connection.
                  */
 
+                log_message(LOG_WARNING, "We got an incoming connection on fd index %d", i);
+
                 connfd = accept (listenfd, cliaddr, &clilen);
 
 
@@ -203,6 +206,7 @@ oom:
                 }
 
                 child->client.fd = connfd;
+                child->client.index = (int) i;
                 memcpy(&child->client.addr, &cliaddr_storage, sizeof(cliaddr_storage));
 
                 attrp = 0;
@@ -253,6 +257,7 @@ int child_listening_sockets(vector_t listen_addrs, uint16_t port)
 {
         int ret;
         ssize_t i;
+        uint16_t port_index;
 
         assert (port > 0);
 
@@ -276,20 +281,23 @@ int child_listening_sockets(vector_t listen_addrs, uint16_t port)
                 return ret;
         }
 
-        for (i = 0; i < vector_length(listen_addrs); i++) {
-                const char *addr;
+        for (port_index = 0; port_index < 8; port_index++) {
+            for (i = 0; i < vector_length(listen_addrs); i++) {
+                    const char *addr;
 
-                addr = (char *)vector_getentry(listen_addrs, i, NULL);
-                if (addr == NULL) {
-                        log_message(LOG_WARNING,
-                                    "got NULL from listen_addrs - skipping");
-                        continue;
-                }
+                    addr = (char *)vector_getentry(listen_addrs, i, NULL);
+                    if (addr == NULL) {
+                            log_message(LOG_WARNING,
+                                        "got NULL from listen_addrs - skipping");
+                            continue;
+                    }
 
-                ret = listen_sock(addr, port, listen_fds);
-                if (ret != 0) {
-                        return ret;
-                }
+                    log_message(LOG_WARNING, "listening on port %d", port+port_index);
+                    ret = listen_sock(addr, port+port_index, listen_fds);
+                    if (ret != 0) {
+                            return ret;
+                    }
+            }
         }
 
         return 0;

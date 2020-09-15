@@ -44,6 +44,6 @@ struct request_s {
         char *path;
 };
 
-extern void handle_connection (int fd, union sockaddr_union* addr);
+extern void handle_connection (int fd, int index, union sockaddr_union* addr);
 
 #endif
